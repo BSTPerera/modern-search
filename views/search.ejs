@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title><%= query ? `"${query}" — ` : '' %>Modern Search</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #12121a;
+      --surface2: #1a1a2a;
+      --border:   #2a2a3a;
+      --accent:   #6c63ff;
+      --accent2:  #38bdf8;
+      --success:  #3fb950;
+      --warn:     #f59e0b;
+      --danger:   #ef4444;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --mono:     'JetBrains Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Top nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex; align-items: center; gap: 24px; height: 60px;
+    }
+    .nav-logo {
+      font-size: 1.2rem; font-weight: 700; color: var(--accent);
+      letter-spacing: -0.5px; white-space: nowrap;
+    }
+    .nav-logo span { color: var(--accent2); }
+
+    /* ── Search bar in nav ── */
+    .nav-search {
+      flex: 1; max-width: 560px;
+      display: flex; gap: 8px; position: relative;
+    }
+    .nav-search input {
+      flex: 1;
+      padding: 9px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+    .nav-search input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+    }
+    .nav-search button {
+      padding: 9px 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .nav-search button:hover { background: #5548d9; transform: translateY(-1px); }
+
+    /* ── Suggestions dropdown ── */
+    #suggestions {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 60px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: none;
+      z-index: 200;
+    }
+    #suggestions .sug-item {
+      padding: 9px 14px;
+      font-size: 0.85rem; color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #suggestions .sug-item:hover { background: var(--border); color: var(--text); }
+
+    /* ── Main layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr 260px;
+      gap: 0;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* ── Sidebar left ── */
+    .sidebar-left {
+      padding-right: 24px;
+      border-right: 1px solid var(--border);
+    }
+    .sidebar-left h3 {
+      font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 12px;
+    }
+    .filter-list { list-style: none; }
+    .filter-list li a {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.88rem;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .filter-list li a:hover { background: var(--surface2); color: var(--text); }
+    .filter-list li a.active {
+      background: rgba(108,99,255,0.15);
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .filter-list li a .badge {
+      font-size: 0.72rem;
+      background: var(--surface2);
+      color: var(--muted);
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    .filter-list li a.active .badge {
+      background: rgba(108,99,255,0.25);
+      color: var(--accent);
+    }
+
+    /* ── Main content ── */
+    .main-content { padding: 0 28px; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .results-header h2 {
+      font-size: 0.95rem; font-weight: 500; color: var(--muted);
+    }
+    .results-header h2 strong { color: var(--text); font-weight: 600; }
+
+    /* ── REFLECTED OUTPUT (the XSS sink) ── */
+    .query-banner {
+      background: rgba(108,99,255,0.08);
+      border: 1px solid rgba(108,99,255,0.2);
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 20px;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .query-banner .query-text {
+      color: var(--accent2);
+      font-family: var(--mono);
+      font-size: 0.85rem;
+    }
+
+    /* ── Article cards ── */
+    .article-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin-bottom: 14px;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      text-decoration: none;
+      display: block;
+    }
+    .article-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .card-meta {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .category-badge {
+      font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 2px 8px; border-radius: 4px;
+    }
+    .cat-Technology { background: rgba(56,189,248,0.15); color: var(--accent2); }
+    .cat-Security   { background: rgba(239,68,68,0.12);  color: #f87171; }
+    .cat-Research   { background: rgba(251,191,36,0.12); color: #fbbf24; }
+    .card-date { font-size: 0.75rem; color: var(--muted); }
+    .read-time { font-size: 0.75rem; color: var(--muted); margin-left: auto; }
+
+    .card-title {
+      font-size: 1rem; font-weight: 600;
+      color: var(--text); margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .card-summary {
+      font-size: 0.85rem; color: var(--muted);
+      line-height: 1.6; margin-bottom: 12px;
+    }
+    .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-author {
+      font-size: 0.78rem; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .author-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; color: #fff;
+    }
+    .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: 0.7rem; padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center; padding: 64px 24px;
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 1.1rem; color: var(--text); margin-bottom: 8px; }
+    .empty-state p { font-size: 0.88rem; color: var(--muted); }
+
+    /* ── Right sidebar ── */
+    .sidebar-right {
+      padding-left: 24px;
+      border-left: 1px solid var(--border);
+    }
+    .sidebar-right h3 {
+      font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 12px;
+    }
+
+    .trending-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      margin-bottom: 14px; cursor: pointer;
+    }
+    .trending-rank {
+      font-size: 1.1rem; font-weight: 700; color: var(--border);
+      font-family: var(--mono); min-width: 20px;
+    }
+    .trending-title {
+      font-size: 0.82rem; color: var(--muted);
+      line-height: 1.4; transition: color 0.15s;
+    }
+    .trending-item:hover .trending-title { color: var(--text); }
+
+    .tags-cloud {
+      display: flex; flex-wrap: wrap; gap: 7px;
+    }
+    .tags-cloud .tag {
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tags-cloud .tag:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .sidebar-section { margin-bottom: 28px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1000px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar-left, .sidebar-right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Modern<span>Search</span></div>
+
+  <form class="nav-search" action="/search" method="GET" autocomplete="off">
+    <div style="position:relative; flex:1;">
+      <input
+        type="text"
+        name="q"
+        id="q"
+        placeholder="Search articles, topics, tags..."
+        value="<%= query %>"
+        autocomplete="off"
+      />
+      <div id="suggestions"></div>
+    </div>
+    <% if (category !== 'All') { %>
+    <input type="hidden" name="cat" value="<%= category %>" />
+    <% } %>
+    <button type="submit" id="search-btn">Search</button>
+  </form>
+</nav>
+
+<div class="layout">
+
+  <!-- ── Left sidebar: category filters ── -->
+  <aside class="sidebar-left">
+    <div class="sidebar-section">
+      <h3>Categories</h3>
+      <ul class="filter-list">
+        <% categories.forEach(cat => { %>
+        <li>
+          <a
+            href="/search?q=<%= encodeURIComponent(query) %>&cat=<%= cat %>"
+            class="<%= category === cat ? 'active' : '' %>"
+          >
+            <%= cat %>
+            <span class="badge">
+              <%= cat === 'All'
+                  ? results.length
+                  : results.filter(r => r.category === cat).length
+              %>
+            </span>
+          </a>
+        </li>
+        <% }) %>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- ── Main content ── -->
+  <main class="main-content">
+
+    <!-- ── Results header ── -->
+    <div class="results-header">
+      <h2>
+        <% if (query) { %>
+          <strong><%= totalResults %></strong> result<%= totalResults !== 1 ? 's' : '' %> for your search
+        <% } else { %>
+          Browse all <strong><%= totalResults %></strong> articles
+        <% } %>
+      </h2>
+    </div>
+
+    <!-- ── REFLECTED XSS SINK ──────────────────────────────────────────────
+         The query string is rendered RAW (unescaped) into the DOM here.
+         In the vulnerable version: <%- query %> → direct HTML injection.
+         In the fixed version:      <%= query %> → HTML entity encoded.
+         ────────────────────────────────────────────────────────────────── -->
+    <% if (query) { %>
+    <div class="query-banner" id="query-banner">
+      Showing results for: <span class="query-text"><%- query %></span>
+    </div>
+    <% } %>
+
+    <!-- ── Article results ── -->
+    <% if (results.length > 0) { %>
+      <% results.forEach(article => { %>
+      <a class="article-card" href="/article/<%= article.id %>" id="article-<%= article.id %>">
+        <div class="card-meta">
+          <span class="category-badge cat-<%= article.category %>"><%= article.category %></span>
+          <span class="card-date"><%= article.date %></span>
+          <span class="read-time">⏱ <%= article.readTime %> min read</span>
+        </div>
+        <div class="card-title"><%= article.title %></div>
+        <div class="card-summary"><%= article.summary %></div>
+        <div class="card-footer">
+          <div class="card-author">
+            <div class="author-avatar"><%= article.author[0] %></div>
+            <%= article.author %>
+          </div>
+          <div class="card-tags">
+            <% article.tags.slice(0,3).forEach(tag => { %>
+            <span class="tag">#<%= tag %></span>
+            <% }) %>
+          </div>
+        </div>
+      </a>
+      <% }) %>
+    <% } else { %>
+      <div class="empty-state" id="no-results">
+        <div class="icon">🔍</div>
+        <h3>No results found</h3>
+        <p>Try a different search term or browse all categories</p>
+      </div>
+    <% } %>
+  </main>
+
+  <!-- ── Right sidebar: trending + tags ── -->
+  <aside class="sidebar-right">
+    <div class="sidebar-section">
+      <h3>Trending Articles</h3>
+      <% const trending = results.length > 0 ? results.slice(0,4) : [] %>
+      <% if (trending.length === 0) { %>
+        <p style="font-size:.82rem;color:var(--muted);">No trending results in this search.</p>
+      <% } %>
+      <% trending.forEach((a, i) => { %>
+      <a href="/article/<%= a.id %>" class="trending-item" style="text-decoration:none;">
+        <span class="trending-rank">0<%= i+1 %></span>
+        <span class="trending-title"><%= a.title %></span>
+      </a>
+      <% }) %>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Popular Tags</h3>
+      <div class="tags-cloud">
+        <% const allTags = [...new Set(results.flatMap(r => r.tags))].slice(0, 12) %>
+        <% allTags.forEach(tag => { %>
+        <a href="/search?q=<%= tag %>" class="tag" style="text-decoration:none;">#<%= tag %></a>
+        <% }) %>
+        <% if (allTags.length === 0) { %>
+        <span style="font-size:.82rem;color:var(--muted);">—</span>
+        <% } %>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+// ── Live search suggestions ───────────────────────────────────────────────────
+const input = document.getElementById('q');
+const box   = document.getElementById('suggestions');
+
+input.addEventListener('input', async () => {
+  const q = input.value.trim();
+  if (q.length < 2) { box.style.display = 'none'; return; }
+  const res  = await fetch('/api/suggest?q=' + encodeURIComponent(q));
+  const tags = await res.json();
+  if (!tags.length) { box.style.display = 'none'; return; }
+  box.innerHTML = tags.map(t =>
+    `<div class="sug-item" onclick="applyTag('${t}')">#${t}</div>`
+  ).join('');
+  box.style.display = 'block';
+});
+
+function applyTag(tag) {
+  input.value = tag;
+  box.style.display = 'none';
+  input.closest('form').submit();
+}
+
+document.addEventListener('click', e => {
+  if (!box.contains(e.target) && e.target !== input) {
+    box.style.display = 'none';
+  }
+});
+</script>
+
+</body>
+</html>

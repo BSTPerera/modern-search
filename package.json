@@ -1,13 +1,14 @@
 {
   "name": "modern-search",
-  "version": "1.0.0",
-  "description": "Controlled XSS test target for AVRE security research tool",
+  "version": "2.0.0",
+  "description": "Advanced news search portal — AVRE XSS revalidation target",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
   },
   "dependencies": {
     "ejs": "^3.1.9",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "morgan": "^1.10.0"
   }
 }
