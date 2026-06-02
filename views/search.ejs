@@ -353,14 +353,13 @@
       </h2>
     </div>
 
-    <!-- ── REFLECTED XSS SINK ──────────────────────────────────────────────
-         The query string is rendered RAW (unescaped) into the DOM here.
-         In the vulnerable version: <%- query %> → direct HTML injection.
-         In the fixed version:      <%= query %> → HTML entity encoded.
+    <!-- ── PATCHED XSS SINK ────────────────────────────────────────────────
+         FIX: <%- query %> changed to <%= query %> (HTML entity encoded).
+         Combined with CSP header, this blocks all reflected XSS payloads.
          ────────────────────────────────────────────────────────────────── -->
     <% if (query) { %>
     <div class="query-banner" id="query-banner">
-      Showing results for: <span class="query-text"><%- query %></span>
+      Showing results for: <span class="query-text"><%= query %></span>
     </div>
     <% } %>
 

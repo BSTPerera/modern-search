@@ -4,6 +4,15 @@ const path    = require('path');
 
 const app = express();
 
+// ── Security headers (patch: CSP prevents inline script execution) ────────────
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; img-src 'self' data:;"
+  );
+  next();
+});
+
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'public')));
